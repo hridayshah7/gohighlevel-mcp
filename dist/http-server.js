@@ -92,9 +92,8 @@ class GHLMCPHttpServer {
     productsTools;
     port;
     constructor() {
-        this.port = parseInt(process.env.PORT || process.env.MCP_SERVER_PORT || '8000');
+        this.port = parseInt(process.env.PORT || '8000');
         console.log(`✅ MCP Server will listen on port: ${this.port}`);
-        
         // Initialize Express app
         this.app = (0, express_1.default)();
         this.setupExpress();
