@@ -1,3 +1,6 @@
+console.log("🚀 Starting MCP Server...");
+console.log("Using PORT:", process.env.PORT);
+
 "use strict";
 /**
  * GoHighLevel MCP HTTP Server
