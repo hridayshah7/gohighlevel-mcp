@@ -2,6 +2,8 @@
  * GoHighLevel MCP HTTP Server
  * HTTP version for ChatGPT web integration
  */
+console.log("🚀 Starting MCP Server...");
+console.log("Using PORT:", process.env.PORT);
 
 import express from 'express';
 import cors from 'cors';
@@ -65,7 +67,7 @@ class GHLMCPHttpServer {
   private port: number;
 
   constructor() {
-    this.port = parseInt(process.env.PORT || process.env.MCP_SERVER_PORT || '8080');
+    this.port = parseInt(process.env.PORT || '8000');
     console.log(`✅ MCP Server will listen on port: ${this.port}`);
     // Initialize Express app
     this.app = express();
