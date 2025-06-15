@@ -32,7 +32,7 @@ import { CustomFieldV2Tools } from './tools/custom-field-v2-tools';
 import { WorkflowTools } from './tools/workflow-tools';
 import { SurveyTools } from './tools/survey-tools';
 import { StoreTools } from './tools/store-tools';
-import { ProductsTools } from './tools/products-tools.js';
+import { ProductsTools } from './tools/products-tools';
 import { GHLConfig } from './types/ghl-types';
 
 // Load environment variables
@@ -295,16 +295,32 @@ class GHLMCPHttpServer {
   /**
    * Setup HTTP routes
    */
+/**
+   * Setup HTTP routes
+   */
   private setupRoutes(): void {
     // Health check endpoint
-    this.app.get('/health', (req, res) => {
-      res.json({ 
-        status: 'healthy',
-        server: 'ghl-mcp-server',
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-        tools: this.getToolsCount()
-      });
+    this.app.get('/health', async (req, res) => {
+      try {
+        // Get all tool names for the health check
+        const allToolNames = await this.getAllToolNames();
+        
+        res.json({ 
+          status: 'healthy',
+          server: 'ghl-mcp-server',
+          version: '1.0.0',
+          protocol: '2024-11-05',
+          timestamp: new Date().toISOString(),
+          tools: allToolNames,
+          endpoint: '/sse'
+        });
+      } catch (error) {
+        console.error('[GHL MCP HTTP] Error in health check:', error);
+        res.status(500).json({
+          status: 'error',
+          error: 'Health check failed'
+        });
+      }
     });
 
     // MCP capabilities endpoint
@@ -320,7 +336,7 @@ class GHLMCPHttpServer {
       });
     });
 
-    // Tools listing endpoint
+    // Tools listing endpoint - Fixed to properly handle async operations
     this.app.get('/tools', async (req, res) => {
       try {
         const contactTools = this.contactTools.getToolDefinitions();
@@ -341,12 +357,39 @@ class GHLMCPHttpServer {
         const storeTools = this.storeTools.getTools();
         const productsTools = this.productsTools.getTools();
         
+        const allTools = [
+          ...contactTools, 
+          ...conversationTools, 
+          ...blogTools, 
+          ...opportunityTools, 
+          ...calendarTools, 
+          ...emailTools, 
+          ...locationTools, 
+          ...emailISVTools, 
+          ...socialMediaTools, 
+          ...mediaTools, 
+          ...objectTools, 
+          ...associationTools, 
+          ...customFieldV2Tools, 
+          ...workflowTools, 
+          ...surveyTools, 
+          ...storeTools, 
+          ...productsTools
+        ];
+        
+        console.log(`[GHL MCP HTTP] Tools endpoint accessed - returning ${allTools.length} tools`);
+        
         res.json({
-          tools: [...contactTools, ...conversationTools, ...blogTools, ...opportunityTools, ...calendarTools, ...emailTools, ...locationTools, ...emailISVTools, ...socialMediaTools, ...mediaTools, ...objectTools, ...associationTools, ...customFieldV2Tools, ...workflowTools, ...surveyTools, ...storeTools, ...productsTools],
-          count: contactTools.length + conversationTools.length + blogTools.length + opportunityTools.length + calendarTools.length + emailTools.length + locationTools.length + emailISVTools.length + socialMediaTools.length + mediaTools.length + objectTools.length + associationTools.length + customFieldV2Tools.length + workflowTools.length + surveyTools.length + storeTools.length + productsTools.length
+          tools: allTools,
+          count: allTools.length,
+          categories: this.getToolsCount() // Keep the detailed breakdown here
         });
       } catch (error) {
-        res.status(500).json({ error: 'Failed to list tools' });
+        console.error('[GHL MCP HTTP] Error listing tools:', error);
+        res.status(500).json({ 
+          error: 'Failed to list tools',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     });
 
@@ -387,21 +430,82 @@ class GHLMCPHttpServer {
     this.app.post('/sse', handleSSE);
 
     // Root endpoint with server info
-    this.app.get('/', (req, res) => {
-      res.json({
-        name: 'GoHighLevel MCP Server',
-        version: '1.0.0',
-        status: 'running',
-        endpoints: {
-          health: '/health',
-          capabilities: '/capabilities',
-          tools: '/tools',
-          sse: '/sse'
-        },
-        tools: this.getToolsCount(),
-        documentation: 'https://github.com/your-repo/ghl-mcp-server'
-      });
+    this.app.get('/', async (req, res) => {
+      try {
+        const toolsCount = this.getToolsCount();
+        
+        res.json({
+          name: 'GoHighLevel MCP Server',
+          version: '1.0.0',
+          status: 'running',
+          endpoints: {
+            health: '/health',
+            capabilities: '/capabilities',
+            tools: '/tools',
+            sse: '/sse'
+          },
+          tools: toolsCount,
+          documentation: 'https://github.com/your-repo/ghl-mcp-server'
+        });
+      } catch (error) {
+        console.error('[GHL MCP HTTP] Error in root endpoint:', error);
+        res.status(500).json({
+          error: 'Server error',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     });
+  }
+
+  /**
+   * Get all tool names as an array (for health endpoint)
+   */
+  private async getAllToolNames(): Promise<string[]> {
+    try {
+      const contactTools = this.contactTools.getToolDefinitions();
+      const conversationTools = this.conversationTools.getToolDefinitions();
+      const blogTools = this.blogTools.getToolDefinitions();
+      const opportunityTools = this.opportunityTools.getToolDefinitions();
+      const calendarTools = this.calendarTools.getToolDefinitions();
+      const emailTools = this.emailTools.getToolDefinitions();
+      const locationTools = this.locationTools.getToolDefinitions();
+      const emailISVTools = this.emailISVTools.getToolDefinitions();
+      const socialMediaTools = this.socialMediaTools.getTools();
+      const mediaTools = this.mediaTools.getToolDefinitions();
+      const objectTools = this.objectTools.getToolDefinitions();
+      const associationTools = this.associationTools.getTools();
+      const customFieldV2Tools = this.customFieldV2Tools.getTools();
+      const workflowTools = this.workflowTools.getTools();
+      const surveyTools = this.surveyTools.getTools();
+      const storeTools = this.storeTools.getTools();
+      const productsTools = this.productsTools.getTools();
+      
+      const allTools = [
+        ...contactTools, 
+        ...conversationTools, 
+        ...blogTools, 
+        ...opportunityTools, 
+        ...calendarTools, 
+        ...emailTools, 
+        ...locationTools, 
+        ...emailISVTools, 
+        ...socialMediaTools, 
+        ...mediaTools, 
+        ...objectTools, 
+        ...associationTools, 
+        ...customFieldV2Tools, 
+        ...workflowTools, 
+        ...surveyTools, 
+        ...storeTools, 
+        ...productsTools
+      ];
+      
+      // Extract just the tool names
+      return allTools.map(tool => tool.name);
+    } catch (error) {
+      console.error('[GHL MCP HTTP] Error getting tool names:', error);
+      return []; // Return empty array on error
+    }
   }
 
   /**
