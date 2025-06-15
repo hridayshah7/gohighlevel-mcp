@@ -9,6 +9,6 @@
     "restartPolicyMaxRetries": 10
   },
   "envVars": {
-    "PORT": "8000"
+    "PORT": "8080"
   }
 }
