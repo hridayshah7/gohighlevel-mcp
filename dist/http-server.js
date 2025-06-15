@@ -139,7 +139,7 @@ class GHLMCPHttpServer {
     setupExpress() {
         // Enable CORS for ChatGPT integration
         this.app.use((0, cors_1.default)({
-            origin: ['https://chatgpt.com', 'https://chat.openai.com', 'http://localhost:*', 'https://claude.ai'],
+            origin: ['https://chatgpt.com', 'https://chat.openai.com', 'http://localhost:*', 'https://claude.ai', 'https://app.claude.ai' ],
             methods: ['GET', 'POST', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
             credentials: true
@@ -314,6 +314,38 @@ class GHLMCPHttpServer {
        * Setup HTTP routes
        */
     setupRoutes() {
+        // Add debugging middleware to catch ALL requests
+        this.app.use('*', (req, res, next) => {
+            console.log('🔍 === INCOMING REQUEST DEBUG ===');
+            console.log(`Method: ${req.method}`);
+            console.log(`URL: ${req.originalUrl}`);
+            console.log(`IP: ${req.ip}`);
+            console.log(`User-Agent: ${req.headers['user-agent']}`);
+            console.log(`Headers:`, JSON.stringify(req.headers, null, 2));
+            if (req.body && Object.keys(req.body).length > 0) {
+                console.log(`Body:`, JSON.stringify(req.body, null, 2));
+            }
+            console.log('🔍 ================================');
+            next();
+        });
+
+        // Add a simple test endpoint for Claude
+        this.app.all('/claude-test', (req, res) => {
+            console.log('🎯 CLAUDE TEST ENDPOINT HIT!');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', '*');
+            
+            res.json({
+                success: true,
+                message: "Claude successfully reached the server!",
+                method: req.method,
+                timestamp: new Date().toISOString(),
+                userAgent: req.headers['user-agent'],
+                ip: req.ip
+            });
+        });
+
         // Health check endpoint
         this.app.get('/health', async (req, res) => {
             try {
