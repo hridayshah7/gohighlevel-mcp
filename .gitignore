@@ -15,7 +15,7 @@ yarn-error.log*
 cursor-mcp-config.json
 
 # Build output
-dist/
+
 build/
 
 # IDE files
