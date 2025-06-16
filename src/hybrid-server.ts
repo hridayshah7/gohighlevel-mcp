@@ -563,8 +563,17 @@ class GHLMCPHybridServer {
                         return;
                     }
 
+                    // Handle notifications/initialized
+                    if (method === 'notifications/initialized') {
+                        console.log('[GHL MCP HTTP] Client initialized successfully!');
+                        // No response needed for notifications
+                        res.status(200).end();
+                        return;
+                    }
+
                     // Handle tools list request
                     if (method === 'tools/list') {
+                        console.log('[GHL MCP HTTP] Tools list requested!');
                         const allTools = [
                             ...this.contactTools.getToolDefinitions(),
                             ...this.conversationTools.getToolDefinitions(),
@@ -587,6 +596,7 @@ class GHLMCPHybridServer {
                             ...this.invoicesTools.getTools()
                         ];
 
+                        console.log(`[GHL MCP HTTP] Returning ${allTools.length} tools`);
                         res.json({
                             jsonrpc: '2.0',
                             id,
