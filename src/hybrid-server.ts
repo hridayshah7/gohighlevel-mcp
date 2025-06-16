@@ -534,19 +534,31 @@ class GHLMCPHybridServer {
 
                     // Handle MCP initialization
                     if (method === 'initialize') {
+                        console.log('[GHL MCP HTTP] Sending initialize response...');
                         res.json({
                             jsonrpc: '2.0',
                             id,
                             result: {
                                 protocolVersion: '2024-11-05',
                                 capabilities: {
-                                    tools: { listChanged: true }
+                                    tools: {}
                                 },
                                 serverInfo: {
                                     name: 'ghl-mcp-server',
                                     version: '1.0.0'
                                 }
                             }
+                        });
+                        console.log('[GHL MCP HTTP] Initialize response sent successfully');
+                        return;
+                    }
+
+                    // Handle notifications/cancelled (for timeouts)
+                    if (method === 'notifications/cancelled') {
+                        console.log('[GHL MCP HTTP] Received cancellation notification:', params);
+                        res.json({
+                            jsonrpc: '2.0',
+                            id: null
                         });
                         return;
                     }
