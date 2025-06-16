@@ -557,7 +557,7 @@ class GHLMCPHybridServer {
                                 }
                             }
                         });
-                        console.log('[GHL MCP HTTP] Initialize response sent successfully');
+                        console.log('[GHL MCP HTTP] Initialize response sent - tools capability advertised');
                         return;
                     }
 
@@ -574,6 +574,7 @@ class GHLMCPHybridServer {
                     // Handle notifications/initialized
                     if (method === 'notifications/initialized') {
                         console.log('[GHL MCP HTTP] Client initialized successfully!');
+                        console.log('[GHL MCP HTTP] Waiting for tools/list request...');
                         // No response needed for notifications
                         res.status(200).end();
                         return;
