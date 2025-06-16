@@ -36,5 +36,5 @@ ENV NODE_ENV=production
 RUN echo "=== FINAL COMMAND WILL BE ==="
 RUN echo "node dist/http-server.js"
 
-CMD ["node", "dist/http-server.js"]
+CMD ["node", "dist/server.js"]
 RUN echo "✅ Ready to start MCP server on PORT $PORT"
