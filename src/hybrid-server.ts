@@ -535,13 +535,21 @@ class GHLMCPHybridServer {
                     // Handle MCP initialization
                     if (method === 'initialize') {
                         console.log('[GHL MCP HTTP] Sending initialize response...');
+                        console.log('[GHL MCP HTTP] Client info:', JSON.stringify(params.clientInfo, null, 2));
+                        
                         res.json({
                             jsonrpc: '2.0',
                             id,
                             result: {
                                 protocolVersion: '2024-11-05',
                                 capabilities: {
-                                    tools: {}
+                                    tools: {
+                                        listChanged: true
+                                    },
+                                    resources: {
+                                        subscribe: false,
+                                        listChanged: false
+                                    }
                                 },
                                 serverInfo: {
                                     name: 'ghl-mcp-server',
@@ -602,6 +610,19 @@ class GHLMCPHybridServer {
                             id,
                             result: {
                                 tools: allTools
+                            }
+                        });
+                        return;
+                    }
+
+                    // Handle resources list request (Claude sends this instead of tools/list)
+                    if (method === 'resources/list') {
+                        console.log('[GHL MCP HTTP] Resources list requested - returning empty resources');
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            result: {
+                                resources: []
                             }
                         });
                         return;
