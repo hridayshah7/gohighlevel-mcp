@@ -537,6 +537,31 @@ class GHLMCPHybridServer {
                         console.log('[GHL MCP HTTP] Sending initialize response...');
                         console.log('[GHL MCP HTTP] Client info:', JSON.stringify(params.clientInfo, null, 2));
                         
+                        // Get tool count for logging
+                        const allTools = [
+                            ...this.contactTools.getToolDefinitions(),
+                            ...this.conversationTools.getToolDefinitions(),
+                            ...this.blogTools.getToolDefinitions(),
+                            ...this.opportunityTools.getToolDefinitions(),
+                            ...this.calendarTools.getToolDefinitions(),
+                            ...this.emailTools.getToolDefinitions(),
+                            ...this.locationTools.getToolDefinitions(),
+                            ...this.emailISVTools.getToolDefinitions(),
+                            ...this.socialMediaTools.getTools(),
+                            ...this.mediaTools.getToolDefinitions(),
+                            ...this.objectTools.getToolDefinitions(),
+                            ...this.associationTools.getTools(),
+                            ...this.customFieldV2Tools.getTools(),
+                            ...this.workflowTools.getTools(),
+                            ...this.surveyTools.getTools(),
+                            ...this.storeTools.getTools(),
+                            ...this.productsTools.getTools(),
+                            ...this.paymentsTools.getTools(),
+                            ...this.invoicesTools.getTools()
+                        ];
+                        
+                        console.log(`[GHL MCP HTTP] Advertising ${allTools.length} tools capability`);
+                        
                         res.json({
                             jsonrpc: '2.0',
                             id,
@@ -545,10 +570,6 @@ class GHLMCPHybridServer {
                                 capabilities: {
                                     tools: {
                                         listChanged: true
-                                    },
-                                    resources: {
-                                        subscribe: false,
-                                        listChanged: false
                                     }
                                 },
                                 serverInfo: {
@@ -575,8 +596,15 @@ class GHLMCPHybridServer {
                     if (method === 'notifications/initialized') {
                         console.log('[GHL MCP HTTP] Client initialized successfully!');
                         console.log('[GHL MCP HTTP] Waiting for tools/list request...');
-                        // No response needed for notifications
+                        
+                        // Send a simple acknowledgment
                         res.status(200).end();
+                        
+                        // If Claude doesn't request tools within 2 seconds, there might be an issue
+                        setTimeout(() => {
+                            console.log('[GHL MCP HTTP] WARNING: No tools/list request received yet. Client may not recognize tools capability.');
+                        }, 2000);
+                        
                         return;
                     }
 
