@@ -1,64 +1,54 @@
+# Use Node.js 18 Alpine
 FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy and install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm ci --only=production
 
-# Copy rest of the code
+# Copy source code
 COPY . .
 
-# Build TypeScript project
+# Build the TypeScript code
 RUN npm run build
 
-# DEBUG: Check if the build was successful
+# Debug: Check build output
 RUN echo "=== CHECKING BUILD OUTPUT ==="
 RUN ls -la
-
 RUN echo "=== CHECKING DIST DIRECTORY ==="
 RUN ls -la dist/ || echo "❌ dist/ directory not found"
 
-RUN echo "=== CHECKING server.js FILE ==="
-RUN test -f dist/server.js && echo "✅ server.js exists" || echo "❌ server.js missing"
+# Check for hybrid server file
+RUN echo "=== CHECKING HYBRID SERVER FILE ==="
+RUN test -f dist/hybrid-server.js && echo "✅ hybrid-server.js exists" || echo "❌ hybrid-server.js missing"
 
-RUN echo "=== CHECKING http-server.js FILE ==="
+# Check for original server files (fallback)
+RUN test -f dist/server.js && echo "✅ server.js exists" || echo "❌ server.js missing"
 RUN test -f dist/http-server.js && echo "✅ http-server.js exists" || echo "❌ http-server.js missing"
 
-# DEBUG: Show file content (first 30 lines) of server.js
-RUN echo "=== SHOWING server.js CONTENT ==="
-RUN head -30 dist/server.js || echo "❌ Cannot read server.js"
+# Show file contents for debugging
+RUN echo "=== SHOWING HYBRID SERVER CONTENT ==="
+RUN head -30 dist/hybrid-server.js || echo "❌ Cannot read hybrid-server.js"
 
-# DEBUG: Check file permissions
-RUN echo "=== FILE PERMISSIONS ==="
-RUN ls -la dist/server.js || echo "❌ server.js not accessible"
-RUN ls -la dist/http-server.js || echo "❌ http-server.js not accessible"
-
-# DEBUG: Test if Node can parse the files
+# Test syntax
 RUN echo "=== TESTING NODE SYNTAX ==="
-RUN node -c dist/server.js && echo "✅ server.js syntax is valid" || echo "❌ Syntax error in server.js"
-RUN node -c dist/http-server.js && echo "✅ http-server.js syntax is valid" || echo "❌ Syntax error in http-server.js"
+RUN node -c dist/hybrid-server.js && echo "✅ hybrid-server.js syntax is valid" || echo "❌ Syntax error in hybrid-server.js"
 
-# Set environment
+# Set environment variables for HTTP mode (web deployment)
+ENV MCP_MODE=http
 ENV NODE_ENV=production
 
-# Expose port for HTTP server (if using http-server.js)
-EXPOSE 8000
+# Expose port
+EXPOSE 8080
 
-# DEBUG: Show startup command
+# Final check
 RUN echo "=== FINAL COMMAND WILL BE ==="
-RUN echo "node dist/server.js"
+RUN echo "node dist/hybrid-server.js"
+RUN echo "✅ Ready to start MCP hybrid server"
 
-# IMPORTANT: Choose the right server for your deployment
-# For Claude Desktop (stdio): use server.js
-# For Railway/web deployment: use http-server.js
-
-# Default to stdio server (for Claude Desktop)
-CMD ["node", "dist/server.js"]
-
-# Alternative: For Railway deployment, use this instead:
-# CMD ["node", "dist/http-server.js"]
-
-# Final debug
-RUN echo "✅ Ready to start MCP server"
+# Start the hybrid server
+CMD ["node", "dist/hybrid-server.js"]
