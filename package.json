@@ -2,9 +2,9 @@
   "name": "@mastanley13/ghl-mcp-server",
   "version": "1.0.0",
   "description": "GoHighLevel MCP Server for Claude Desktop and ChatGPT integration",
-  "main": "dist/server.js",
+  "main": "dist/hybrid-server.js",
   "bin": {
-    "ghl-mcp-server": "dist/server.js"
+    "ghl-mcp-server": "dist/hybrid-server.js"
   },
   "files": [
     "dist/",
