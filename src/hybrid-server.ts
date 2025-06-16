@@ -570,6 +570,10 @@ class GHLMCPHybridServer {
                                 capabilities: {
                                     tools: {
                                         listChanged: true
+                                    },
+                                    resources: {
+                                        subscribe: false,
+                                        listChanged: false
                                     }
                                 },
                                 serverInfo: {
@@ -652,6 +656,48 @@ class GHLMCPHybridServer {
                             id,
                             result: {
                                 resources: []
+                            }
+                        });
+                        console.log('[GHL MCP HTTP] Resources response sent');
+                        return;
+                    }
+
+                    // Claude might be looking for tools in resources - let's also try advertising tools here
+                    if (method === 'resources/templates') {
+                        console.log('[GHL MCP HTTP] Resource templates requested - sending tools as resources');
+                        
+                        const allTools = [
+                            ...this.contactTools.getToolDefinitions(),
+                            ...this.conversationTools.getToolDefinitions(),
+                            ...this.blogTools.getToolDefinitions(),
+                            ...this.opportunityTools.getToolDefinitions(),
+                            ...this.calendarTools.getToolDefinitions(),
+                            ...this.emailTools.getToolDefinitions(),
+                            ...this.locationTools.getToolDefinitions(),
+                            ...this.emailISVTools.getToolDefinitions(),
+                            ...this.socialMediaTools.getTools(),
+                            ...this.mediaTools.getToolDefinitions(),
+                            ...this.objectTools.getToolDefinitions(),
+                            ...this.associationTools.getTools(),
+                            ...this.customFieldV2Tools.getTools(),
+                            ...this.workflowTools.getTools(),
+                            ...this.surveyTools.getTools(),
+                            ...this.storeTools.getTools(),
+                            ...this.productsTools.getTools(),
+                            ...this.paymentsTools.getTools(),
+                            ...this.invoicesTools.getTools()
+                        ];
+                        
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            result: {
+                                resourceTemplates: allTools.map(tool => ({
+                                    uri: `tool://ghl/${tool.name}`,
+                                    name: tool.name,
+                                    description: tool.description,
+                                    mimeType: 'application/json'
+                                }))
                             }
                         });
                         return;
