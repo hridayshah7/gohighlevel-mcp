@@ -1,86 +1,109 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 console.log("🚀 Starting MCP Server...");
 console.log("Using PORT:", process.env.PORT);
-
 /**
  * GoHighLevel MCP Hybrid Server
  * Combines your existing server.ts and http-server.ts into one file
  * Compatible with your existing project structure
  */
-
-import express from 'express';
-import cors from 'cors';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
-    ListToolsRequestSchema, 
-    CallToolRequestSchema, 
-    McpError, 
-    ErrorCode 
-} from '@modelcontextprotocol/sdk/types.js';
-import * as dotenv from 'dotenv';
-
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
+const sse_js_1 = require("@modelcontextprotocol/sdk/server/sse.js");
+const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
+const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
+const dotenv = __importStar(require("dotenv"));
 // Load environment variables
 dotenv.config();
-
 // Note: Tool classes will be imported dynamically in initializeTools() method
 // to avoid TypeScript compilation errors if some tool files don't exist yet
-
 /**
  * Deployment mode configuration
  */
-enum DeploymentMode {
-    HTTP = 'http',
-    STDIO = 'stdio',
-    AUTO = 'auto'
-}
-
+var DeploymentMode;
+(function (DeploymentMode) {
+    DeploymentMode["HTTP"] = "http";
+    DeploymentMode["STDIO"] = "stdio";
+    DeploymentMode["AUTO"] = "auto";
+})(DeploymentMode || (DeploymentMode = {}));
 /**
  * Hybrid MCP Server class supporting both HTTP and STDIO modes
  */
 class GHLMCPHybridServer {
-    private app?: express.Application;
-    private server: Server;
-    private ghlClient: any; // Use any type to avoid import issues
-    private mode: DeploymentMode;
-    private port: number;
-
+    app;
+    server;
+    ghlClient; // Use any type to avoid import issues
+    mode;
+    port;
     // Tool instances - using any type to avoid TypeScript import issues
-    private contactTools: any;
-    private conversationTools: any;
-    private blogTools: any;
-    private opportunityTools: any;
-    private calendarTools: any;
-    private emailTools: any;
-    private locationTools: any;
-    private emailISVTools: any;
-    private socialMediaTools: any;
-    private mediaTools: any;
-    private objectTools: any;
-    private associationTools: any;
-    private customFieldV2Tools: any;
-    private workflowTools: any;
-    private surveyTools: any;
-    private storeTools: any;
-    private productsTools: any;
-    private paymentsTools: any;
-    private invoicesTools: any;
-
+    contactTools;
+    conversationTools;
+    blogTools;
+    opportunityTools;
+    calendarTools;
+    emailTools;
+    locationTools;
+    emailISVTools;
+    socialMediaTools;
+    mediaTools;
+    objectTools;
+    associationTools;
+    customFieldV2Tools;
+    workflowTools;
+    surveyTools;
+    storeTools;
+    productsTools;
+    paymentsTools;
+    invoicesTools;
     constructor() {
         // Determine deployment mode
         this.mode = this.determineMode();
         this.port = parseInt(process.env.PORT || '8080');
-        
         console.log(`✅ MCP Server will run in ${this.mode.toUpperCase()} mode on port: ${this.port}`);
-        
         // Initialize Express app if in HTTP mode
         if (this.mode === DeploymentMode.HTTP) {
-            this.app = express();
+            this.app = (0, express_1.default)();
             this.setupExpress();
         }
-
         // Initialize MCP server with capabilities
-        this.server = new Server({
+        this.server = new index_js_1.Server({
             name: 'ghl-mcp-server',
             version: '1.0.0',
         }, {
@@ -88,80 +111,70 @@ class GHLMCPHybridServer {
                 tools: {},
             },
         });
-
         // Initialize GHL API client
         this.ghlClient = this.initializeGHLClient();
-
         // Initialize all tool instances
         this.initializeTools();
-
         // Setup MCP handlers
         this.setupMCPHandlers();
-
         // Setup HTTP routes if in HTTP mode
         if (this.mode === DeploymentMode.HTTP && this.app) {
             this.setupRoutes();
         }
     }
-
     /**
      * Determine deployment mode based on environment
      */
-    private determineMode(): DeploymentMode {
+    determineMode() {
         const modeEnv = process.env.MCP_MODE?.toLowerCase();
-        
-        if (modeEnv === 'http') return DeploymentMode.HTTP;
-        if (modeEnv === 'stdio') return DeploymentMode.STDIO;
-        
+        if (modeEnv === 'http')
+            return DeploymentMode.HTTP;
+        if (modeEnv === 'stdio')
+            return DeploymentMode.STDIO;
         // Auto-detect based on environment
         if (process.env.PORT || process.env.NODE_ENV === 'production') {
             return DeploymentMode.HTTP;
         }
-        
         // Default to STDIO for Claude Desktop
         return DeploymentMode.STDIO;
     }
-
     /**
      * Logging helper that works in both modes
      */
-    private log(message: string): void {
+    log(message) {
         if (this.mode === DeploymentMode.HTTP) {
             console.log(message);
-        } else {
+        }
+        else {
             process.stderr.write(message + '\n');
         }
     }
-
     /**
      * Setup Express middleware and configuration (HTTP mode only)
      */
-    private setupExpress(): void {
-        if (!this.app) return;
-
+    setupExpress() {
+        if (!this.app)
+            return;
         // Enable CORS for Claude AI and other web clients
-        this.app.use(cors({
+        this.app.use((0, cors_1.default)({
             origin: [
-                'https://chatgpt.com', 
-                'https://chat.openai.com', 
-                'http://localhost:*', 
-                'https://claude.ai', 
+                'https://chatgpt.com',
+                'https://chat.openai.com',
+                'http://localhost:*',
+                'https://claude.ai',
                 'https://app.claude.ai'
             ],
             methods: ['GET', 'POST', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
             credentials: true
         }));
-
         // Parse JSON requests
-        this.app.use(express.json());
-
+        this.app.use(express_1.default.json());
         // Request logging
         this.app.use((req, res, next) => {
             console.log(`[HTTP] ${req.method} ${req.path} - ${new Date().toISOString()}`);
             next();
         });
-
         // Debug middleware to catch ALL requests - Fixed route pattern
         this.app.use((req, res, next) => {
             console.log('🔍 === INCOMING REQUEST DEBUG ===');
@@ -177,18 +190,16 @@ class GHLMCPHybridServer {
             next();
         });
     }
-
     /**
      * Initialize GoHighLevel API client with configuration
      */
-    private initializeGHLClient(): any {
+    initializeGHLClient() {
         const config = {
             accessToken: process.env.GHL_API_KEY || '',
             baseUrl: process.env.GHL_BASE_URL || 'https://services.leadconnectorhq.com',
             version: '2021-07-28',
             locationId: process.env.GHL_LOCATION_ID || ''
         };
-
         // Validate required configuration
         if (!config.accessToken) {
             throw new Error('GHL_API_KEY environment variable is required');
@@ -196,17 +207,16 @@ class GHLMCPHybridServer {
         if (!config.locationId) {
             throw new Error('GHL_LOCATION_ID environment variable is required');
         }
-
         this.log('[GHL MCP] Initializing GHL API client...');
         this.log(`[GHL MCP] Base URL: ${config.baseUrl}`);
         this.log(`[GHL MCP] Version: ${config.version}`);
         this.log(`[GHL MCP] Location ID: ${config.locationId}`);
-
         try {
             // Try to import and initialize the GHL client
             const { GHLApiClient } = require('./clients/ghl-api-client');
             return new GHLApiClient(config);
-        } catch (error) {
+        }
+        catch (error) {
             this.log(`[GHL MCP] Warning: Could not load GHLApiClient: ${error}`);
             // Return a mock client for development
             return {
@@ -214,11 +224,10 @@ class GHLMCPHybridServer {
             };
         }
     }
-
     /**
      * Initialize all tool instances using safe imports
      */
-    private initializeTools(): void {
+    initializeTools() {
         try {
             // Use require() for CommonJS compatibility and error handling
             const { ContactTools } = require('./tools/contact-tools');
@@ -240,7 +249,6 @@ class GHLMCPHybridServer {
             const { ProductsTools } = require('./tools/products-tools');
             const { PaymentsTools } = require('./tools/payments-tools');
             const { InvoicesTools } = require('./tools/invoices-tools');
-
             this.contactTools = new ContactTools(this.ghlClient);
             this.conversationTools = new ConversationTools(this.ghlClient);
             this.blogTools = new BlogTools(this.ghlClient);
@@ -260,11 +268,10 @@ class GHLMCPHybridServer {
             this.productsTools = new ProductsTools(this.ghlClient);
             this.paymentsTools = new PaymentsTools(this.ghlClient);
             this.invoicesTools = new InvoicesTools(this.ghlClient);
-
             this.log('[GHL MCP] All tool classes initialized successfully');
-        } catch (error) {
+        }
+        catch (error) {
             this.log(`[GHL MCP] Warning: Some tool classes could not be loaded: ${error}`);
-            
             // Initialize with mock tools that return empty arrays
             const mockTool = {
                 getToolDefinitions: () => [],
@@ -278,7 +285,6 @@ class GHLMCPHybridServer {
                 executeProductsTool: async () => ({ error: 'Tool not available' }),
                 handleToolCall: async () => ({ error: 'Tool not available' })
             };
-
             this.contactTools = mockTool;
             this.conversationTools = mockTool;
             this.blogTools = mockTool;
@@ -300,15 +306,13 @@ class GHLMCPHybridServer {
             this.invoicesTools = mockTool;
         }
     }
-
     /**
      * Setup MCP request handlers (used by both modes)
      */
-    private setupMCPHandlers(): void {
+    setupMCPHandlers() {
         // Handle list tools requests
-        this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+        this.server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
             this.log('[GHL MCP] Listing available tools...');
-            
             try {
                 const allTools = [
                     ...this.contactTools.getToolDefinitions(),
@@ -331,67 +335,81 @@ class GHLMCPHybridServer {
                     ...this.paymentsTools.getTools(),
                     ...this.invoicesTools.getTools()
                 ];
-
                 this.log(`[GHL MCP] Registered ${allTools.length} tools total`);
                 return { tools: allTools };
-
-            } catch (error) {
+            }
+            catch (error) {
                 console.error('[GHL MCP] Error listing tools:', error);
-                throw new McpError(ErrorCode.InternalError, `Failed to list tools: ${error}`);
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Failed to list tools: ${error}`);
             }
         });
-
         // Handle tool execution requests
-        this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+        this.server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             this.log(`[GHL MCP] Executing tool: ${name}`);
-
             try {
                 let result;
-
                 // Route to appropriate tool handler
                 if (this.isContactTool(name)) {
                     result = await this.contactTools.executeTool(name, args || {});
-                } else if (this.isConversationTool(name)) {
+                }
+                else if (this.isConversationTool(name)) {
                     result = await this.conversationTools.executeTool(name, args || {});
-                } else if (this.isBlogTool(name)) {
+                }
+                else if (this.isBlogTool(name)) {
                     result = await this.blogTools.executeTool(name, args || {});
-                } else if (this.isOpportunityTool(name)) {
+                }
+                else if (this.isOpportunityTool(name)) {
                     result = await this.opportunityTools.executeTool(name, args || {});
-                } else if (this.isCalendarTool(name)) {
+                }
+                else if (this.isCalendarTool(name)) {
                     result = await this.calendarTools.executeTool(name, args || {});
-                } else if (this.isEmailTool(name)) {
+                }
+                else if (this.isEmailTool(name)) {
                     result = await this.emailTools.executeTool(name, args || {});
-                } else if (this.isLocationTool(name)) {
+                }
+                else if (this.isLocationTool(name)) {
                     result = await this.locationTools.executeTool(name, args || {});
-                } else if (this.isEmailISVTool(name)) {
+                }
+                else if (this.isEmailISVTool(name)) {
                     result = await this.emailISVTools.executeTool(name, args || {});
-                } else if (this.isSocialMediaTool(name)) {
+                }
+                else if (this.isSocialMediaTool(name)) {
                     result = await this.socialMediaTools.executeTool(name, args || {});
-                } else if (this.isMediaTool(name)) {
+                }
+                else if (this.isMediaTool(name)) {
                     result = await this.mediaTools.executeTool(name, args || {});
-                } else if (this.isObjectTool(name)) {
+                }
+                else if (this.isObjectTool(name)) {
                     result = await this.objectTools.executeTool(name, args || {});
-                } else if (this.isAssociationTool(name)) {
+                }
+                else if (this.isAssociationTool(name)) {
                     result = await this.associationTools.executeAssociationTool(name, args || {});
-                } else if (this.isCustomFieldV2Tool(name)) {
+                }
+                else if (this.isCustomFieldV2Tool(name)) {
                     result = await this.customFieldV2Tools.executeCustomFieldV2Tool(name, args || {});
-                } else if (this.isWorkflowTool(name)) {
+                }
+                else if (this.isWorkflowTool(name)) {
                     result = await this.workflowTools.executeWorkflowTool(name, args || {});
-                } else if (this.isSurveyTool(name)) {
+                }
+                else if (this.isSurveyTool(name)) {
                     result = await this.surveyTools.executeSurveyTool(name, args || {});
-                } else if (this.isStoreTool(name)) {
+                }
+                else if (this.isStoreTool(name)) {
                     result = await this.storeTools.executeStoreTool(name, args || {});
-                } else if (this.isProductsTool(name)) {
+                }
+                else if (this.isProductsTool(name)) {
                     result = await this.productsTools.executeProductsTool(name, args || {});
-                } else if (this.isPaymentsTool(name)) {
+                }
+                else if (this.isPaymentsTool(name)) {
                     result = await this.paymentsTools.handleToolCall(name, args || {});
-                } else if (this.isInvoicesTool(name)) {
+                }
+                else if (this.isInvoicesTool(name)) {
                     result = await this.invoicesTools.handleToolCall(name, args || {});
-                } else {
+                }
+                else {
                     throw new Error(`Unknown tool: ${name}`);
                 }
-
                 this.log(`[GHL MCP] Tool ${name} executed successfully`);
                 return {
                     content: [
@@ -401,30 +419,28 @@ class GHLMCPHybridServer {
                         }
                     ]
                 };
-
-            } catch (error) {
+            }
+            catch (error) {
                 console.error(`[GHL MCP] Error executing tool ${name}:`, error);
                 const errorCode = error instanceof Error && error.message.includes('404')
-                    ? ErrorCode.InvalidRequest
-                    : ErrorCode.InternalError;
-                throw new McpError(errorCode, `Tool execution failed: ${error}`);
+                    ? types_js_1.ErrorCode.InvalidRequest
+                    : types_js_1.ErrorCode.InternalError;
+                throw new types_js_1.McpError(errorCode, `Tool execution failed: ${error}`);
             }
         });
     }
-
     /**
      * Setup HTTP routes (HTTP mode only)
      */
-    private setupRoutes(): void {
-        if (!this.app) return;
-
+    setupRoutes() {
+        if (!this.app)
+            return;
         // Claude test endpoint
         this.app.all('/claude-test', (req, res) => {
             console.log('🎯 CLAUDE TEST ENDPOINT HIT!');
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
             res.setHeader('Access-Control-Allow-Headers', '*');
-            
             res.json({
                 success: true,
                 message: "Claude successfully reached the server!",
@@ -434,7 +450,6 @@ class GHLMCPHybridServer {
                 ip: req.ip
             });
         });
-
         // Health check endpoint
         this.app.get('/health', async (req, res) => {
             try {
@@ -449,7 +464,8 @@ class GHLMCPHybridServer {
                     endpoint: '/sse',
                     mode: this.mode
                 });
-            } catch (error) {
+            }
+            catch (error) {
                 console.error('[GHL MCP HTTP] Error in health check:', error);
                 res.status(500).json({
                     status: 'error',
@@ -457,7 +473,6 @@ class GHLMCPHybridServer {
                 });
             }
         });
-
         // MCP capabilities endpoint
         this.app.get('/capabilities', (req, res) => {
             res.json({
@@ -470,7 +485,6 @@ class GHLMCPHybridServer {
                 }
             });
         });
-
         // Tools listing endpoint
         this.app.get('/tools', async (req, res) => {
             try {
@@ -495,14 +509,14 @@ class GHLMCPHybridServer {
                     ...this.paymentsTools.getTools(),
                     ...this.invoicesTools.getTools()
                 ];
-
                 console.log(`[GHL MCP HTTP] Tools endpoint accessed - returning ${allTools.length} tools`);
                 res.json({
                     tools: allTools,
                     count: allTools.length,
                     categories: this.getToolsCount()
                 });
-            } catch (error) {
+            }
+            catch (error) {
                 console.error('[GHL MCP HTTP] Error listing tools:', error);
                 res.status(500).json({
                     error: 'Failed to list tools',
@@ -510,34 +524,31 @@ class GHLMCPHybridServer {
                 });
             }
         });
-
         // SSE endpoint for web MCP connection
-        const handleSSE = async (req: express.Request, res: express.Response) => {
+        const handleSSE = async (req, res) => {
             const sessionId = req.query.sessionId || 'unknown';
             console.log(`[GHL MCP HTTP] New SSE connection from: ${req.ip}, sessionId: ${sessionId}, method: ${req.method}`);
-
             try {
-                const transport = new SSEServerTransport('/sse', res);
+                const transport = new sse_js_1.SSEServerTransport('/sse', res);
                 await this.server.connect(transport);
                 console.log(`[GHL MCP HTTP] SSE connection established for session: ${sessionId}`);
-
                 req.on('close', () => {
                     console.log(`[GHL MCP HTTP] SSE connection closed for session: ${sessionId}`);
                 });
-            } catch (error) {
+            }
+            catch (error) {
                 console.error(`[GHL MCP HTTP] SSE connection error for session ${sessionId}:`, error);
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'Failed to establish SSE connection' });
-                } else {
+                }
+                else {
                     res.end();
                 }
             }
         };
-
         // Handle both GET and POST for SSE
         this.app.get('/sse', handleSSE);
         this.app.post('/sse', handleSSE);
-
         // Root endpoint with server info
         this.app.get('/', async (req, res) => {
             try {
@@ -556,7 +567,8 @@ class GHLMCPHybridServer {
                     tools: toolsCount,
                     documentation: 'https://github.com/your-repo/ghl-mcp-server'
                 });
-            } catch (error) {
+            }
+            catch (error) {
                 console.error('[GHL MCP HTTP] Error in root endpoint:', error);
                 res.status(500).json({
                     error: 'Server error',
@@ -565,11 +577,10 @@ class GHLMCPHybridServer {
             }
         });
     }
-
     /**
      * Get all tool names as an array
      */
-    private async getAllToolNames(): Promise<string[]> {
+    async getAllToolNames() {
         try {
             const allTools = [
                 ...this.contactTools.getToolDefinitions(),
@@ -592,18 +603,17 @@ class GHLMCPHybridServer {
                 ...this.paymentsTools.getTools(),
                 ...this.invoicesTools.getTools()
             ];
-
             return allTools.map(tool => tool.name);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('[GHL MCP] Error getting tool names:', error);
             return [];
         }
     }
-
     /**
      * Get tools count summary
      */
-    private getToolsCount() {
+    getToolsCount() {
         return {
             contact: this.contactTools.getToolDefinitions().length,
             conversation: this.conversationTools.getToolDefinitions().length,
@@ -645,9 +655,8 @@ class GHLMCPHybridServer {
                 this.invoicesTools.getTools().length
         };
     }
-
     // Tool validation methods
-    private isContactTool(toolName: string): boolean {
+    isContactTool(toolName) {
         const contactToolNames = [
             'create_contact', 'search_contacts', 'get_contact', 'update_contact',
             'add_contact_tags', 'remove_contact_tags', 'delete_contact',
@@ -662,8 +671,7 @@ class GHLMCPHybridServer {
         ];
         return contactToolNames.includes(toolName);
     }
-
-    private isConversationTool(toolName: string): boolean {
+    isConversationTool(toolName) {
         const conversationToolNames = [
             'send_sms', 'send_email', 'search_conversations', 'get_conversation',
             'create_conversation', 'update_conversation', 'delete_conversation', 'get_recent_messages',
@@ -673,16 +681,14 @@ class GHLMCPHybridServer {
         ];
         return conversationToolNames.includes(toolName);
     }
-
-    private isBlogTool(toolName: string): boolean {
+    isBlogTool(toolName) {
         const blogToolNames = [
             'create_blog_post', 'update_blog_post', 'get_blog_posts', 'get_blog_sites',
             'get_blog_authors', 'get_blog_categories', 'check_url_slug'
         ];
         return blogToolNames.includes(toolName);
     }
-
-    private isOpportunityTool(toolName: string): boolean {
+    isOpportunityTool(toolName) {
         const opportunityToolNames = [
             'search_opportunities', 'get_pipelines', 'get_opportunity', 'create_opportunity',
             'update_opportunity_status', 'delete_opportunity', 'update_opportunity',
@@ -690,8 +696,7 @@ class GHLMCPHybridServer {
         ];
         return opportunityToolNames.includes(toolName);
     }
-
-    private isCalendarTool(toolName: string): boolean {
+    isCalendarTool(toolName) {
         const calendarToolNames = [
             'get_calendar_groups', 'create_calendar_group', 'validate_group_slug',
             'update_calendar_group', 'delete_calendar_group', 'disable_calendar_group',
@@ -708,16 +713,14 @@ class GHLMCPHybridServer {
         ];
         return calendarToolNames.includes(toolName);
     }
-
-    private isEmailTool(toolName: string): boolean {
+    isEmailTool(toolName) {
         const emailToolNames = [
             'get_email_campaigns', 'create_email_template', 'get_email_templates',
             'update_email_template', 'delete_email_template'
         ];
         return emailToolNames.includes(toolName);
     }
-
-    private isLocationTool(toolName: string): boolean {
+    isLocationTool(toolName) {
         const locationToolNames = [
             'search_locations', 'get_location', 'create_location', 'update_location', 'delete_location',
             'get_location_tags', 'create_location_tag', 'get_location_tag', 'update_location_tag',
@@ -729,13 +732,11 @@ class GHLMCPHybridServer {
         ];
         return locationToolNames.includes(toolName);
     }
-
-    private isEmailISVTool(toolName: string): boolean {
+    isEmailISVTool(toolName) {
         const emailISVToolNames = ['verify_email'];
         return emailISVToolNames.includes(toolName);
     }
-
-    private isSocialMediaTool(toolName: string): boolean {
+    isSocialMediaTool(toolName) {
         const socialMediaToolNames = [
             'search_social_posts', 'create_social_post', 'get_social_post', 'update_social_post',
             'delete_social_post', 'bulk_delete_social_posts', 'get_social_accounts', 'delete_social_account',
@@ -745,15 +746,13 @@ class GHLMCPHybridServer {
         ];
         return socialMediaToolNames.includes(toolName);
     }
-
-    private isMediaTool(toolName: string): boolean {
+    isMediaTool(toolName) {
         const mediaToolNames = [
             'get_media_files', 'upload_media_file', 'delete_media_file'
         ];
         return mediaToolNames.includes(toolName);
     }
-
-    private isObjectTool(toolName: string): boolean {
+    isObjectTool(toolName) {
         const objectToolNames = [
             'get_all_objects', 'create_object_schema', 'get_object_schema', 'update_object_schema',
             'create_object_record', 'get_object_record', 'update_object_record', 'delete_object_record',
@@ -761,8 +760,7 @@ class GHLMCPHybridServer {
         ];
         return objectToolNames.includes(toolName);
     }
-
-    private isAssociationTool(toolName: string): boolean {
+    isAssociationTool(toolName) {
         const associationToolNames = [
             'ghl_get_all_associations', 'ghl_create_association', 'ghl_get_association_by_id',
             'ghl_update_association', 'ghl_delete_association', 'ghl_get_association_by_key',
@@ -771,8 +769,7 @@ class GHLMCPHybridServer {
         ];
         return associationToolNames.includes(toolName);
     }
-
-    private isCustomFieldV2Tool(toolName: string): boolean {
+    isCustomFieldV2Tool(toolName) {
         const customFieldV2ToolNames = [
             'ghl_get_custom_field_by_id', 'ghl_create_custom_field', 'ghl_update_custom_field',
             'ghl_delete_custom_field', 'ghl_get_custom_fields_by_object_key', 'ghl_create_custom_field_folder',
@@ -780,18 +777,15 @@ class GHLMCPHybridServer {
         ];
         return customFieldV2ToolNames.includes(toolName);
     }
-
-    private isWorkflowTool(toolName: string): boolean {
+    isWorkflowTool(toolName) {
         const workflowToolNames = ['ghl_get_workflows'];
         return workflowToolNames.includes(toolName);
     }
-
-    private isSurveyTool(toolName: string): boolean {
+    isSurveyTool(toolName) {
         const surveyToolNames = ['ghl_get_surveys', 'ghl_get_survey_submissions'];
         return surveyToolNames.includes(toolName);
     }
-
-    private isStoreTool(toolName: string): boolean {
+    isStoreTool(toolName) {
         const storeToolNames = [
             'ghl_create_shipping_zone', 'ghl_list_shipping_zones', 'ghl_get_shipping_zone',
             'ghl_update_shipping_zone', 'ghl_delete_shipping_zone', 'ghl_get_available_shipping_rates',
@@ -802,8 +796,7 @@ class GHLMCPHybridServer {
         ];
         return storeToolNames.includes(toolName);
     }
-
-    private isProductsTool(toolName: string): boolean {
+    isProductsTool(toolName) {
         const productsToolNames = [
             'ghl_create_product', 'ghl_list_products', 'ghl_get_product', 'ghl_update_product',
             'ghl_delete_product', 'ghl_create_price', 'ghl_list_prices', 'ghl_list_inventory',
@@ -811,8 +804,7 @@ class GHLMCPHybridServer {
         ];
         return productsToolNames.includes(toolName);
     }
-
-    private isPaymentsTool(toolName: string): boolean {
+    isPaymentsTool(toolName) {
         const paymentsToolNames = [
             'create_whitelabel_integration_provider', 'list_whitelabel_integration_providers',
             'list_orders', 'get_order_by_id', 'create_order_fulfillment', 'list_order_fulfillments',
@@ -823,8 +815,7 @@ class GHLMCPHybridServer {
         ];
         return paymentsToolNames.includes(toolName);
     }
-
-    private isInvoicesTool(toolName: string): boolean {
+    isInvoicesTool(toolName) {
         const invoicesToolNames = [
             'create_invoice_template', 'list_invoice_templates', 'get_invoice_template',
             'update_invoice_template', 'delete_invoice_template', 'create_invoice_schedule',
@@ -834,54 +825,50 @@ class GHLMCPHybridServer {
         ];
         return invoicesToolNames.includes(toolName);
     }
-
     /**
      * Test GHL API connection
      */
-    private async testGHLConnection(): Promise<void> {
+    async testGHLConnection() {
         try {
             this.log('[GHL MCP] Testing GHL API connection...');
             const result = await this.ghlClient.testConnection();
             this.log('[GHL MCP] ✅ GHL API connection successful');
             this.log(`[GHL MCP] Connected to location: ${result.data?.locationId}`);
-        } catch (error) {
+        }
+        catch (error) {
             this.log(`[GHL MCP] ❌ GHL API connection failed: ${error}`);
             throw new Error(`Failed to connect to GHL API: ${error}`);
         }
     }
-
     /**
      * Start the server in the appropriate mode
      */
-    public async start(): Promise<void> {
+    async start() {
         this.log('🚀 Starting GoHighLevel MCP Hybrid Server...');
         this.log('=========================================');
         this.log(`Mode: ${this.mode.toUpperCase()}`);
-
         try {
             // Test GHL API connection
             await this.testGHLConnection();
-
             if (this.mode === DeploymentMode.HTTP) {
                 await this.startHttpMode();
-            } else {
+            }
+            else {
                 await this.startStdioMode();
             }
-
-        } catch (error) {
+        }
+        catch (error) {
             this.log(`❌ Failed to start GHL MCP Server: ${error}`);
             process.exit(1);
         }
     }
-
     /**
      * Start HTTP mode (for web deployment)
      */
-    private async startHttpMode(): Promise<void> {
+    async startHttpMode() {
         if (!this.app) {
             throw new Error('Express app not initialized for HTTP mode');
         }
-
         this.app.listen(this.port, '0.0.0.0', () => {
             console.log('✅ GoHighLevel MCP HTTP Server started successfully!');
             console.log(`🌐 Server running on: http://0.0.0.0:${this.port}`);
@@ -891,32 +878,26 @@ class GHLMCPHybridServer {
             console.log('=========================================');
         });
     }
-
     /**
      * Start STDIO mode (for Claude Desktop)
      */
-    private async startStdioMode(): Promise<void> {
+    async startStdioMode() {
         // Create STDIO transport
-        const transport = new StdioServerTransport();
-        
+        const transport = new stdio_js_1.StdioServerTransport();
         // Connect server to transport
         await this.server.connect(transport);
-        
         this.log('✅ GoHighLevel MCP Server started successfully!');
         this.log('🔗 Ready to handle Claude Desktop requests');
         this.log(`📋 Tools Available: ${this.getToolsCount().total}`);
         this.log('=========================================');
-
         // Print tools summary for STDIO mode
         this.printToolsSummary();
     }
-
     /**
      * Print detailed tools summary (STDIO mode)
      */
-    private printToolsSummary(): void {
+    printToolsSummary() {
         const toolsCount = this.getToolsCount();
-        
         this.log(`📋 Available tools: ${toolsCount.total}`);
         this.log('');
         this.log('🎯 CONTACT MANAGEMENT (31 tools):');
@@ -1005,38 +986,33 @@ class GHLMCPHybridServer {
         this.log('=========================================');
     }
 }
-
 /**
  * Handle graceful shutdown
  */
-function setupGracefulShutdown(): void {
-    const shutdown = (signal: string) => {
+function setupGracefulShutdown() {
+    const shutdown = (signal) => {
         console.log(`\n[GHL MCP] Received ${signal}, shutting down gracefully...`);
         process.exit(0);
     };
-
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
-
 /**
  * Main entry point
  */
-async function main(): Promise<void> {
+async function main() {
     try {
         // Setup graceful shutdown
         setupGracefulShutdown();
-
         // Create and start hybrid server
         const server = new GHLMCPHybridServer();
         await server.start();
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('💥 Fatal error:', error);
         process.exit(1);
     }
 }
-
 // Start the server
 main().catch((error) => {
     console.error('Unhandled error:', error);

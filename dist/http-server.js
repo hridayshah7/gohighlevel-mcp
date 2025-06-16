@@ -1,11 +1,4 @@
-console.log("🚀 Starting MCP Server...");
-console.log("Using PORT:", process.env.PORT);
-
 "use strict";
-/**
- * GoHighLevel MCP HTTP Server
- * HTTP version for ChatGPT web integration
- */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -43,6 +36,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+/**
+ * GoHighLevel MCP HTTP Server
+ * HTTP version for ChatGPT web integration
+ */
+console.log("🚀 Starting MCP Server...");
+console.log("Using PORT:", process.env.PORT);
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
@@ -95,7 +94,7 @@ class GHLMCPHttpServer {
     productsTools;
     port;
     constructor() {
-        this.port = parseInt(process.env.PORT || '8080');
+        this.port = parseInt(process.env.PORT || '8000');
         console.log(`✅ MCP Server will listen on port: ${this.port}`);
         // Initialize Express app
         this.app = (0, express_1.default)();
@@ -139,7 +138,7 @@ class GHLMCPHttpServer {
     setupExpress() {
         // Enable CORS for ChatGPT integration
         this.app.use((0, cors_1.default)({
-            origin: ['https://chatgpt.com', 'https://chat.openai.com', 'http://localhost:*', 'https://claude.ai', 'https://app.claude.ai' ],
+            origin: ['https://chatgpt.com', 'https://chat.openai.com', 'http://localhost:*', 'https://claude.ai', 'https://app.claude.ai'],
             methods: ['GET', 'POST', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
             credentials: true
@@ -314,38 +313,6 @@ class GHLMCPHttpServer {
        * Setup HTTP routes
        */
     setupRoutes() {
-        // Add debugging middleware to catch ALL requests
-        this.app.use('*', (req, res, next) => {
-            console.log('🔍 === INCOMING REQUEST DEBUG ===');
-            console.log(`Method: ${req.method}`);
-            console.log(`URL: ${req.originalUrl}`);
-            console.log(`IP: ${req.ip}`);
-            console.log(`User-Agent: ${req.headers['user-agent']}`);
-            console.log(`Headers:`, JSON.stringify(req.headers, null, 2));
-            if (req.body && Object.keys(req.body).length > 0) {
-                console.log(`Body:`, JSON.stringify(req.body, null, 2));
-            }
-            console.log('🔍 ================================');
-            next();
-        });
-
-        // Add a simple test endpoint for Claude
-        this.app.all('/claude-test', (req, res) => {
-            console.log('🎯 CLAUDE TEST ENDPOINT HIT!');
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', '*');
-            
-            res.json({
-                success: true,
-                message: "Claude successfully reached the server!",
-                method: req.method,
-                timestamp: new Date().toISOString(),
-                userAgent: req.headers['user-agent'],
-                ip: req.ip
-            });
-        });
-
         // Health check endpoint
         this.app.get('/health', async (req, res) => {
             try {
