@@ -511,23 +511,183 @@ class GHLMCPHybridServer {
             }
         });
 
-        // SSE endpoint for web MCP connection
-        const handleSSE = async (req: express.Request, res: express.Response) => {
+        // FIXED SSE endpoint for web MCP connection
+        const handleSSE = async (req: express.Request, res: express.Response): Promise<void> => {
             const sessionId = req.query.sessionId || 'unknown';
-            console.log(`[GHL MCP HTTP] New SSE connection from: ${req.ip}, sessionId: ${sessionId}, method: ${req.method}`);
+            console.log(`[GHL MCP HTTP] SSE request: ${req.method} from: ${req.ip}, sessionId: ${sessionId}`);
 
             try {
-                const transport = new SSEServerTransport('/sse', res);
-                await this.server.connect(transport);
-                console.log(`[GHL MCP HTTP] SSE connection established for session: ${sessionId}`);
+                // Handle POST requests with JSON-RPC (MCP protocol messages)
+                if (req.method === 'POST') {
+                    const { jsonrpc, id, method, params } = req.body;
+                    
+                    console.log(`[GHL MCP HTTP] JSON-RPC request: ${method}`);
+                    
+                    if (jsonrpc !== '2.0') {
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            error: { code: -32600, message: 'Invalid Request' }
+                        });
+                        return;
+                    }
 
-                req.on('close', () => {
-                    console.log(`[GHL MCP HTTP] SSE connection closed for session: ${sessionId}`);
-                });
+                    // Handle MCP initialization
+                    if (method === 'initialize') {
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            result: {
+                                protocolVersion: '2024-11-05',
+                                capabilities: {
+                                    tools: { listChanged: true }
+                                },
+                                serverInfo: {
+                                    name: 'ghl-mcp-server',
+                                    version: '1.0.0'
+                                }
+                            }
+                        });
+                        return;
+                    }
+
+                    // Handle tools list request
+                    if (method === 'tools/list') {
+                        const allTools = [
+                            ...this.contactTools.getToolDefinitions(),
+                            ...this.conversationTools.getToolDefinitions(),
+                            ...this.blogTools.getToolDefinitions(),
+                            ...this.opportunityTools.getToolDefinitions(),
+                            ...this.calendarTools.getToolDefinitions(),
+                            ...this.emailTools.getToolDefinitions(),
+                            ...this.locationTools.getToolDefinitions(),
+                            ...this.emailISVTools.getToolDefinitions(),
+                            ...this.socialMediaTools.getTools(),
+                            ...this.mediaTools.getToolDefinitions(),
+                            ...this.objectTools.getToolDefinitions(),
+                            ...this.associationTools.getTools(),
+                            ...this.customFieldV2Tools.getTools(),
+                            ...this.workflowTools.getTools(),
+                            ...this.surveyTools.getTools(),
+                            ...this.storeTools.getTools(),
+                            ...this.productsTools.getTools(),
+                            ...this.paymentsTools.getTools(),
+                            ...this.invoicesTools.getTools()
+                        ];
+
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            result: {
+                                tools: allTools
+                            }
+                        });
+                        return;
+                    }
+
+                    // Handle tool execution
+                    if (method === 'tools/call') {
+                        const { name, arguments: args } = params;
+                        console.log(`[GHL MCP HTTP] Executing tool: ${name}`);
+
+                        try {
+                            let result;
+
+                            // Route to appropriate tool handler (use your existing routing logic)
+                            if (this.isContactTool(name)) {
+                                result = await this.contactTools.executeTool(name, args || {});
+                            } else if (this.isConversationTool(name)) {
+                                result = await this.conversationTools.executeTool(name, args || {});
+                            } else if (this.isBlogTool(name)) {
+                                result = await this.blogTools.executeTool(name, args || {});
+                            } else if (this.isOpportunityTool(name)) {
+                                result = await this.opportunityTools.executeTool(name, args || {});
+                            } else if (this.isCalendarTool(name)) {
+                                result = await this.calendarTools.executeTool(name, args || {});
+                            } else if (this.isEmailTool(name)) {
+                                result = await this.emailTools.executeTool(name, args || {});
+                            } else if (this.isLocationTool(name)) {
+                                result = await this.locationTools.executeTool(name, args || {});
+                            } else if (this.isEmailISVTool(name)) {
+                                result = await this.emailISVTools.executeTool(name, args || {});
+                            } else if (this.isSocialMediaTool(name)) {
+                                result = await this.socialMediaTools.executeTool(name, args || {});
+                            } else if (this.isMediaTool(name)) {
+                                result = await this.mediaTools.executeTool(name, args || {});
+                            } else if (this.isObjectTool(name)) {
+                                result = await this.objectTools.executeTool(name, args || {});
+                            } else if (this.isAssociationTool(name)) {
+                                result = await this.associationTools.executeAssociationTool(name, args || {});
+                            } else if (this.isCustomFieldV2Tool(name)) {
+                                result = await this.customFieldV2Tools.executeCustomFieldV2Tool(name, args || {});
+                            } else if (this.isWorkflowTool(name)) {
+                                result = await this.workflowTools.executeWorkflowTool(name, args || {});
+                            } else if (this.isSurveyTool(name)) {
+                                result = await this.surveyTools.executeSurveyTool(name, args || {});
+                            } else if (this.isStoreTool(name)) {
+                                result = await this.storeTools.executeStoreTool(name, args || {});
+                            } else if (this.isProductsTool(name)) {
+                                result = await this.productsTools.executeProductsTool(name, args || {});
+                            } else if (this.isPaymentsTool(name)) {
+                                result = await this.paymentsTools.handleToolCall(name, args || {});
+                            } else if (this.isInvoicesTool(name)) {
+                                result = await this.invoicesTools.handleToolCall(name, args || {});
+                            } else {
+                                throw new Error(`Unknown tool: ${name}`);
+                            }
+
+                            res.json({
+                                jsonrpc: '2.0',
+                                id,
+                                result: {
+                                    content: [
+                                        {
+                                            type: 'text',
+                                            text: JSON.stringify(result, null, 2)
+                                        }
+                                    ]
+                                }
+                            });
+                            return;
+
+                        } catch (error) {
+                            res.json({
+                                jsonrpc: '2.0',
+                                id,
+                                error: {
+                                    code: -32603,
+                                    message: `Tool execution failed: ${error}`
+                                }
+                            });
+                            return;
+                        }
+                    }
+
+                    // Unknown method
+                    res.json({
+                        jsonrpc: '2.0',
+                        id,
+                        error: { code: -32601, message: 'Method not found' }
+                    });
+                    return;
+                }
+
+                // Handle GET requests for SSE connection (real-time updates)
+                if (req.method === 'GET') {
+                    const transport = new SSEServerTransport('/sse', res);
+                    await this.server.connect(transport);
+                    console.log(`[GHL MCP HTTP] SSE connection established for session: ${sessionId}`);
+
+                    req.on('close', () => {
+                        console.log(`[GHL MCP HTTP] SSE connection closed for session: ${sessionId}`);
+                    });
+                    return;
+                }
+
             } catch (error) {
-                console.error(`[GHL MCP HTTP] SSE connection error for session ${sessionId}:`, error);
+                console.error(`[GHL MCP HTTP] SSE error for session ${sessionId}:`, error);
                 if (!res.headersSent) {
-                    res.status(500).json({ error: 'Failed to establish SSE connection' });
+                    res.status(500).json({ error: 'Failed to handle request' });
                 } else {
                     res.end();
                 }

@@ -11,6 +11,6 @@
     "outDir": "./dist",
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "dist/hybrid-server.js"],
   "exclude": ["node_modules", "dist", "tests/**/*"]
 }
