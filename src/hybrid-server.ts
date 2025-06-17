@@ -519,6 +519,14 @@ class GHLMCPHybridServer {
             try {
                 // Handle POST requests with JSON-RPC (MCP protocol messages)
                 if (req.method === 'POST') {
+                    console.log('[GHL MCP HTTP] Processing POST request...');
+                    
+                    if (!req.body) {
+                        console.log('[GHL MCP HTTP] ERROR: No request body');
+                        res.status(400).json({ error: 'No request body' });
+                        return;
+                    }
+                    
                     const { jsonrpc, id, method, params } = req.body;
                     
                     console.log(`[GHL MCP HTTP] JSON-RPC request: ${method}`);
@@ -807,9 +815,23 @@ class GHLMCPHybridServer {
                 }
 
             } catch (error) {
-                console.error(`[GHL MCP HTTP] SSE error for session ${sessionId}:`, error);
+                console.error(`[GHL MCP HTTP] CRITICAL ERROR in handleSSE for session ${sessionId}:`, error);
+                console.error(`[GHL MCP HTTP] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
                 if (!res.headersSent) {
-                    res.status(500).json({ error: 'Failed to handle request' });
+                    try {
+                        res.status(500).json({ 
+                            jsonrpc: '2.0',
+                            id: req.body?.id || null,
+                            error: { 
+                                code: -32603, 
+                                message: 'Internal error',
+                                data: error instanceof Error ? error.message : 'Unknown error'
+                            }
+                        });
+                    } catch (responseError) {
+                        console.error(`[GHL MCP HTTP] Failed to send error response:`, responseError);
+                        res.end();
+                    }
                 } else {
                     res.end();
                 }
