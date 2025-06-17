@@ -515,6 +515,7 @@ class GHLMCPHybridServer {
         const handleSSE = async (req: express.Request, res: express.Response): Promise<void> => {
             const sessionId = req.query.sessionId || 'unknown';
             console.log(`[GHL MCP HTTP] SSE request: ${req.method} from: ${req.ip}, sessionId: ${sessionId}`);
+            console.log(`[GHL MCP HTTP] Handler function called successfully!`);
 
             try {
                 // Handle POST requests with JSON-RPC (MCP protocol messages)
