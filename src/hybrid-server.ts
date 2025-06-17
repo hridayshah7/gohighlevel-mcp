@@ -664,15 +664,62 @@ class GHLMCPHybridServer {
 
                     // Handle resources list request (Claude sends this instead of tools/list)
                     if (method === 'resources/list') {
-                        console.log('[GHL MCP HTTP] Resources list requested - returning empty resources');
-                        res.json({
-                            jsonrpc: '2.0',
-                            id,
-                            result: {
-                                resources: []
-                            }
-                        });
-                        console.log('[GHL MCP HTTP] Resources response sent');
+                        console.log('[GHL MCP HTTP] Resources list requested - converting tools to resources');
+                        
+                        try {
+                            // Get all tools and convert them to resources
+                            const allTools = [
+                                ...this.contactTools.getToolDefinitions(),
+                                ...this.conversationTools.getToolDefinitions(),
+                                ...this.blogTools.getToolDefinitions(),
+                                ...this.opportunityTools.getToolDefinitions(),
+                                ...this.calendarTools.getToolDefinitions(),
+                                ...this.emailTools.getToolDefinitions(),
+                                ...this.locationTools.getToolDefinitions(),
+                                ...this.emailISVTools.getToolDefinitions(),
+                                ...this.socialMediaTools.getTools(),
+                                ...this.mediaTools.getToolDefinitions(),
+                                ...this.objectTools.getToolDefinitions(),
+                                ...this.associationTools.getTools(),
+                                ...this.customFieldV2Tools.getTools(),
+                                ...this.workflowTools.getTools(),
+                                ...this.surveyTools.getTools(),
+                                ...this.storeTools.getTools(),
+                                ...this.productsTools.getTools(),
+                                ...this.paymentsTools.getTools(),
+                                ...this.invoicesTools.getTools()
+                            ];
+                            
+                            // Convert tools to resources format
+                            const resources = allTools.map(tool => ({
+                                uri: `ghl://tools/${tool.name}`,
+                                name: tool.name,
+                                description: tool.description,
+                                mimeType: 'application/vnd.ghl.tool+json'
+                            }));
+                            
+                            console.log(`[GHL MCP HTTP] Returning ${resources.length} tools as resources`);
+                            
+                            res.json({
+                                jsonrpc: '2.0',
+                                id,
+                                result: {
+                                    resources: resources
+                                }
+                            });
+                            console.log('[GHL MCP HTTP] Resources response sent with tools');
+                            
+                        } catch (error) {
+                            console.error('[GHL MCP HTTP] Error loading tools for resources:', error);
+                            res.json({
+                                jsonrpc: '2.0',
+                                id,
+                                result: {
+                                    resources: []
+                                }
+                            });
+                            console.log('[GHL MCP HTTP] Fallback: Resources response sent empty');
+                        }
                         return;
                     }
 
