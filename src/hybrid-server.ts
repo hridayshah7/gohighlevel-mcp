@@ -515,26 +515,51 @@ class GHLMCPHybridServer {
         const handleSSE = async (req: express.Request, res: express.Response): Promise<void> => {
             const sessionId = req.query.sessionId || 'unknown';
             console.log(`[GHL MCP HTTP] SSE request: ${req.method} from: ${req.ip}, sessionId: ${sessionId}`);
-            console.log(`[GHL MCP HTTP] Handler function called successfully!`);
 
             try {
+                // Handle GET requests for SSE connection (real-time updates)
+                if (req.method === 'GET') {
+                    console.log(`[GHL MCP HTTP] Establishing SSE connection for session: ${sessionId}`);
+                    res.writeHead(200, {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive',
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Headers': 'Cache-Control'
+                    });
+                    
+                    // Send initial connection confirmation
+                    res.write(`data: ${JSON.stringify({
+                        type: 'connection',
+                        message: 'MCP server connected',
+                        sessionId: sessionId
+                    })}\n\n`);
+                    
+                    // Keep connection alive
+                    const heartbeat = setInterval(() => {
+                        if (!res.destroyed) {
+                            res.write(`data: ${JSON.stringify({type: 'heartbeat', timestamp: Date.now()})}\n\n`);
+                        } else {
+                            clearInterval(heartbeat);
+                        }
+                    }, 30000);
+
+                    req.on('close', () => {
+                        console.log(`[GHL MCP HTTP] SSE connection closed for session: ${sessionId}`);
+                        clearInterval(heartbeat);
+                    });
+                    
+                    return;
+                }
+
                 // Handle POST requests with JSON-RPC (MCP protocol messages)
                 if (req.method === 'POST') {
-                    console.log('[GHL MCP HTTP] Processing POST request...');
-                    
-                    if (!req.body) {
-                        console.log('[GHL MCP HTTP] ERROR: No request body');
-                        res.status(400).json({ error: 'No request body' });
-                        return;
-                    }
+                    console.log('[GHL MCP HTTP] Processing MCP JSON-RPC request...');
                     
                     const { jsonrpc, id, method, params } = req.body;
-                    
-                    console.log(`[GHL MCP HTTP] JSON-RPC request: ${method}`);
-                    console.log(`[GHL MCP HTTP] Request ID: ${id}, JSONRPC: ${jsonrpc}`);
+                    console.log(`[GHL MCP HTTP] Method: ${method}, ID: ${id}`);
                     
                     if (jsonrpc !== '2.0') {
-                        console.log('[GHL MCP HTTP] Invalid JSON-RPC version');
                         res.json({
                             jsonrpc: '2.0',
                             id,
@@ -545,129 +570,42 @@ class GHLMCPHybridServer {
 
                     // Handle MCP initialization
                     if (method === 'initialize') {
-                        console.log('[GHL MCP HTTP] === STARTING INITIALIZE HANDLER ===');
+                        console.log('[GHL MCP HTTP] Handling initialize request...');
                         
-                        try {
-                            console.log('[GHL MCP HTTP] Parsing client info...');
-                            const clientInfo = params?.clientInfo || {};
-                            console.log('[GHL MCP HTTP] Client info parsed successfully:', JSON.stringify(clientInfo, null, 2));
-                            
-                            console.log('[GHL MCP HTTP] Building response object...');
-                            const response = {
-                                jsonrpc: '2.0',
-                                id,
-                                result: {
-                                    protocolVersion: '2024-11-05',
-                                    capabilities: {
-                                        tools: {
-                                            listChanged: true
-                                        },
-                                        resources: {
-                                            subscribe: false,
-                                            listChanged: false
-                                        }
-                                    },
-                                    serverInfo: {
-                                        name: 'ghl-mcp-server',
-                                        version: '1.0.0'
-                                    }
-                                }
-                            };
-                            
-                            console.log('[GHL MCP HTTP] Sending JSON response...');
-                            res.json(response);
-                            console.log('[GHL MCP HTTP] === INITIALIZE RESPONSE SENT SUCCESSFULLY ===');
-                            
-                        } catch (error) {
-                            console.error('[GHL MCP HTTP] === CRITICAL ERROR IN INITIALIZE ===');
-                            console.error('[GHL MCP HTTP] Error details:', error);
-                            console.error('[GHL MCP HTTP] Error stack:', error instanceof Error ? error.stack : 'No stack');
-                            
-                            try {
-                                res.json({
-                                    jsonrpc: '2.0',
-                                    id,
-                                    error: { 
-                                        code: -32603, 
-                                        message: 'Internal error during initialization',
-                                        data: error instanceof Error ? error.message : 'Unknown error'
-                                    }
-                                });
-                            } catch (responseError) {
-                                console.error('[GHL MCP HTTP] Failed to send error response:', responseError);
-                            }
-                        }
-                        return;
-                    }
-
-                    // Handle notifications/cancelled (for timeouts)
-                    if (method === 'notifications/cancelled') {
-                        console.log('[GHL MCP HTTP] Received cancellation notification:', params);
-                        res.json({
+                        const response = {
                             jsonrpc: '2.0',
-                            id: null
-                        });
+                            id,
+                            result: {
+                                protocolVersion: '2024-11-05',
+                                capabilities: {
+                                    tools: {
+                                        listChanged: true
+                                    }
+                                },
+                                serverInfo: {
+                                    name: 'ghl-mcp-server',
+                                    version: '1.0.0'
+                                }
+                            }
+                        };
+                        
+                        res.json(response);
+                        console.log('[GHL MCP HTTP] Initialize response sent successfully');
                         return;
                     }
 
                     // Handle notifications/initialized
                     if (method === 'notifications/initialized') {
-                        console.log('[GHL MCP HTTP] Client initialized successfully!');
-                        console.log('[GHL MCP HTTP] Waiting for tools/list request...');
-                        
-                        // Send a simple acknowledgment
+                        console.log('[GHL MCP HTTP] Client initialized - sending tools availability notification');
                         res.status(200).end();
-                        
-                        // If Claude doesn't request tools within 2 seconds, there might be an issue
-                        setTimeout(() => {
-                            console.log('[GHL MCP HTTP] WARNING: No tools/list request received yet. Client may not recognize tools capability.');
-                        }, 2000);
-                        
                         return;
                     }
 
                     // Handle tools list request
                     if (method === 'tools/list') {
-                        console.log('[GHL MCP HTTP] Tools list requested!');
-                        const allTools = [
-                            ...this.contactTools.getToolDefinitions(),
-                            ...this.conversationTools.getToolDefinitions(),
-                            ...this.blogTools.getToolDefinitions(),
-                            ...this.opportunityTools.getToolDefinitions(),
-                            ...this.calendarTools.getToolDefinitions(),
-                            ...this.emailTools.getToolDefinitions(),
-                            ...this.locationTools.getToolDefinitions(),
-                            ...this.emailISVTools.getToolDefinitions(),
-                            ...this.socialMediaTools.getTools(),
-                            ...this.mediaTools.getToolDefinitions(),
-                            ...this.objectTools.getToolDefinitions(),
-                            ...this.associationTools.getTools(),
-                            ...this.customFieldV2Tools.getTools(),
-                            ...this.workflowTools.getTools(),
-                            ...this.surveyTools.getTools(),
-                            ...this.storeTools.getTools(),
-                            ...this.productsTools.getTools(),
-                            ...this.paymentsTools.getTools(),
-                            ...this.invoicesTools.getTools()
-                        ];
-
-                        console.log(`[GHL MCP HTTP] Returning ${allTools.length} tools`);
-                        res.json({
-                            jsonrpc: '2.0',
-                            id,
-                            result: {
-                                tools: allTools
-                            }
-                        });
-                        return;
-                    }
-
-                    // Handle resources list request (Claude sends this instead of tools/list)
-                    if (method === 'resources/list') {
-                        console.log('[GHL MCP HTTP] Resources list requested - converting tools to resources');
+                        console.log('[GHL MCP HTTP] Tools list requested - loading all tools...');
                         
                         try {
-                            // Get all tools and convert them to resources
                             const allTools = [
                                 ...this.contactTools.getToolDefinitions(),
                                 ...this.conversationTools.getToolDefinitions(),
@@ -689,79 +627,33 @@ class GHLMCPHybridServer {
                                 ...this.paymentsTools.getTools(),
                                 ...this.invoicesTools.getTools()
                             ];
-                            
-                            // Convert tools to resources format
-                            const resources = allTools.map(tool => ({
-                                uri: `ghl://tools/${tool.name}`,
-                                name: tool.name,
-                                description: tool.description,
-                                mimeType: 'application/vnd.ghl.tool+json'
-                            }));
-                            
-                            console.log(`[GHL MCP HTTP] Returning ${resources.length} tools as resources`);
+
+                            console.log(`[GHL MCP HTTP] Returning ${allTools.length} tools to client`);
                             
                             res.json({
                                 jsonrpc: '2.0',
                                 id,
                                 result: {
-                                    resources: resources
+                                    tools: allTools
                                 }
                             });
-                            console.log('[GHL MCP HTTP] Resources response sent with tools');
+                            
+                            console.log('[GHL MCP HTTP] ✅ TOOLS SUCCESSFULLY SENT TO CLAUDE!');
+                            return;
                             
                         } catch (error) {
-                            console.error('[GHL MCP HTTP] Error loading tools for resources:', error);
+                            console.error('[GHL MCP HTTP] Error loading tools:', error);
                             res.json({
                                 jsonrpc: '2.0',
                                 id,
-                                result: {
-                                    resources: []
+                                error: {
+                                    code: -32603,
+                                    message: 'Failed to load tools',
+                                    data: error instanceof Error ? error.message : 'Unknown error'
                                 }
                             });
-                            console.log('[GHL MCP HTTP] Fallback: Resources response sent empty');
+                            return;
                         }
-                        return;
-                    }
-
-                    // Claude might be looking for tools in resources - let's also try advertising tools here
-                    if (method === 'resources/templates') {
-                        console.log('[GHL MCP HTTP] Resource templates requested - sending tools as resources');
-                        
-                        const allTools = [
-                            ...this.contactTools.getToolDefinitions(),
-                            ...this.conversationTools.getToolDefinitions(),
-                            ...this.blogTools.getToolDefinitions(),
-                            ...this.opportunityTools.getToolDefinitions(),
-                            ...this.calendarTools.getToolDefinitions(),
-                            ...this.emailTools.getToolDefinitions(),
-                            ...this.locationTools.getToolDefinitions(),
-                            ...this.emailISVTools.getToolDefinitions(),
-                            ...this.socialMediaTools.getTools(),
-                            ...this.mediaTools.getToolDefinitions(),
-                            ...this.objectTools.getToolDefinitions(),
-                            ...this.associationTools.getTools(),
-                            ...this.customFieldV2Tools.getTools(),
-                            ...this.workflowTools.getTools(),
-                            ...this.surveyTools.getTools(),
-                            ...this.storeTools.getTools(),
-                            ...this.productsTools.getTools(),
-                            ...this.paymentsTools.getTools(),
-                            ...this.invoicesTools.getTools()
-                        ];
-                        
-                        res.json({
-                            jsonrpc: '2.0',
-                            id,
-                            result: {
-                                resourceTemplates: allTools.map(tool => ({
-                                    uri: `tool://ghl/${tool.name}`,
-                                    name: tool.name,
-                                    description: tool.description,
-                                    mimeType: 'application/json'
-                                }))
-                            }
-                        });
-                        return;
                     }
 
                     // Handle tool execution
@@ -772,7 +664,7 @@ class GHLMCPHybridServer {
                         try {
                             let result;
 
-                            // Route to appropriate tool handler (use your existing routing logic)
+                            // Route to appropriate tool handler
                             if (this.isContactTool(name)) {
                                 result = await this.contactTools.executeTool(name, args || {});
                             } else if (this.isConversationTool(name)) {
@@ -827,64 +719,64 @@ class GHLMCPHybridServer {
                                     ]
                                 }
                             });
+                            
+                            console.log(`[GHL MCP HTTP] ✅ Tool ${name} executed successfully`);
                             return;
 
                         } catch (error) {
+                            console.error(`[GHL MCP HTTP] Error executing tool ${name}:`, error);
                             res.json({
                                 jsonrpc: '2.0',
                                 id,
                                 error: {
                                     code: -32603,
-                                    message: `Tool execution failed: ${error}`
+                                    message: `Tool execution failed: ${error}`,
+                                    data: error instanceof Error ? error.stack : undefined
                                 }
                             });
                             return;
                         }
                     }
 
-                    // Unknown method - this should catch any unhandled requests
-                    console.log(`[GHL MCP HTTP] ERROR: Unknown method '${method}' - this request was not handled`);
-                    console.log(`[GHL MCP HTTP] Available handlers: initialize, notifications/cancelled, notifications/initialized, resources/list, tools/list, tools/call`);
+                    // Handle notifications/cancelled
+                    if (method === 'notifications/cancelled') {
+                        console.log('[GHL MCP HTTP] Request cancelled:', params);
+                        res.status(200).end();
+                        return;
+                    }
+
+                    // Handle any other notifications
+                    if (method.startsWith('notifications/')) {
+                        console.log(`[GHL MCP HTTP] Notification received: ${method}`);
+                        res.status(200).end();
+                        return;
+                    }
+
+                    // Unknown method
+                    console.log(`[GHL MCP HTTP] Unknown method: ${method}`);
                     res.json({
                         jsonrpc: '2.0',
                         id,
-                        error: { code: -32601, message: `Method not found: ${method}` }
-                    });
-                    return;
-                }
-
-                // Handle GET requests for SSE connection (real-time updates)
-                if (req.method === 'GET') {
-                    const transport = new SSEServerTransport('/sse', res);
-                    await this.server.connect(transport);
-                    console.log(`[GHL MCP HTTP] SSE connection established for session: ${sessionId}`);
-
-                    req.on('close', () => {
-                        console.log(`[GHL MCP HTTP] SSE connection closed for session: ${sessionId}`);
+                        error: { 
+                            code: -32601, 
+                            message: `Method not found: ${method}` 
+                        }
                     });
                     return;
                 }
 
             } catch (error) {
-                console.error(`[GHL MCP HTTP] CRITICAL ERROR in handleSSE for session ${sessionId}:`, error);
-                console.error(`[GHL MCP HTTP] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+                console.error(`[GHL MCP HTTP] Critical error in session ${sessionId}:`, error);
                 if (!res.headersSent) {
-                    try {
-                        res.status(500).json({ 
-                            jsonrpc: '2.0',
-                            id: req.body?.id || null,
-                            error: { 
-                                code: -32603, 
-                                message: 'Internal error',
-                                data: error instanceof Error ? error.message : 'Unknown error'
-                            }
-                        });
-                    } catch (responseError) {
-                        console.error(`[GHL MCP HTTP] Failed to send error response:`, responseError);
-                        res.end();
-                    }
-                } else {
-                    res.end();
+                    res.status(500).json({
+                        jsonrpc: '2.0',
+                        id: req.body?.id || null,
+                        error: {
+                            code: -32603,
+                            message: 'Internal server error',
+                            data: error instanceof Error ? error.message : 'Unknown error'
+                        }
+                    });
                 }
             }
         };
