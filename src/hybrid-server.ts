@@ -840,8 +840,16 @@ class GHLMCPHybridServer {
         };
 
         // Handle both GET and POST for SSE
-        this.app.get('/sse', handleSSE);
-        this.app.post('/sse', handleSSE);
+        console.log('[GHL MCP HTTP] Registering SSE route handlers...');
+        this.app.get('/sse', (req, res) => {
+            console.log('[GHL MCP HTTP] GET /sse route handler called');
+            handleSSE(req, res);
+        });
+        this.app.post('/sse', (req, res) => {
+            console.log('[GHL MCP HTTP] POST /sse route handler called');
+            handleSSE(req, res);
+        });
+        console.log('[GHL MCP HTTP] SSE routes registered successfully');
 
         // Root endpoint with server info
         this.app.get('/', async (req, res) => {

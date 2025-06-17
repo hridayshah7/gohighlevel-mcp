@@ -528,12 +528,21 @@ class GHLMCPHybridServer {
         const handleSSE = async (req, res) => {
             const sessionId = req.query.sessionId || 'unknown';
             console.log(`[GHL MCP HTTP] SSE request: ${req.method} from: ${req.ip}, sessionId: ${sessionId}`);
+            console.log(`[GHL MCP HTTP] Handler function called successfully!`);
             try {
                 // Handle POST requests with JSON-RPC (MCP protocol messages)
                 if (req.method === 'POST') {
+                    console.log('[GHL MCP HTTP] Processing POST request...');
+                    if (!req.body) {
+                        console.log('[GHL MCP HTTP] ERROR: No request body');
+                        res.status(400).json({ error: 'No request body' });
+                        return;
+                    }
                     const { jsonrpc, id, method, params } = req.body;
                     console.log(`[GHL MCP HTTP] JSON-RPC request: ${method}`);
+                    console.log(`[GHL MCP HTTP] Request ID: ${id}, JSONRPC: ${jsonrpc}`);
                     if (jsonrpc !== '2.0') {
+                        console.log('[GHL MCP HTTP] Invalid JSON-RPC version');
                         res.json({
                             jsonrpc: '2.0',
                             id,
@@ -543,13 +552,44 @@ class GHLMCPHybridServer {
                     }
                     // Handle MCP initialization
                     if (method === 'initialize') {
+                        console.log('[GHL MCP HTTP] Sending initialize response...');
+                        console.log('[GHL MCP HTTP] Client info:', JSON.stringify(params.clientInfo, null, 2));
+                        // Get tool count for logging
+                        const allTools = [
+                            ...this.contactTools.getToolDefinitions(),
+                            ...this.conversationTools.getToolDefinitions(),
+                            ...this.blogTools.getToolDefinitions(),
+                            ...this.opportunityTools.getToolDefinitions(),
+                            ...this.calendarTools.getToolDefinitions(),
+                            ...this.emailTools.getToolDefinitions(),
+                            ...this.locationTools.getToolDefinitions(),
+                            ...this.emailISVTools.getToolDefinitions(),
+                            ...this.socialMediaTools.getTools(),
+                            ...this.mediaTools.getToolDefinitions(),
+                            ...this.objectTools.getToolDefinitions(),
+                            ...this.associationTools.getTools(),
+                            ...this.customFieldV2Tools.getTools(),
+                            ...this.workflowTools.getTools(),
+                            ...this.surveyTools.getTools(),
+                            ...this.storeTools.getTools(),
+                            ...this.productsTools.getTools(),
+                            ...this.paymentsTools.getTools(),
+                            ...this.invoicesTools.getTools()
+                        ];
+                        console.log(`[GHL MCP HTTP] Advertising ${allTools.length} tools capability`);
                         res.json({
                             jsonrpc: '2.0',
                             id,
                             result: {
                                 protocolVersion: '2024-11-05',
                                 capabilities: {
-                                    tools: { listChanged: true }
+                                    tools: {
+                                        listChanged: true
+                                    },
+                                    resources: {
+                                        subscribe: false,
+                                        listChanged: false
+                                    }
                                 },
                                 serverInfo: {
                                     name: 'ghl-mcp-server',
@@ -557,10 +597,80 @@ class GHLMCPHybridServer {
                                 }
                             }
                         });
+                        console.log('[GHL MCP HTTP] Initialize response sent - tools capability advertised');
+                        return;
+                    }
+                    // Handle notifications/cancelled (for timeouts)
+                    if (method === 'notifications/cancelled') {
+                        console.log('[GHL MCP HTTP] Received cancellation notification:', params);
+                        res.json({
+                            jsonrpc: '2.0',
+                            id: null
+                        });
+                        return;
+                    }
+                    // Handle notifications/initialized
+                    if (method === 'notifications/initialized') {
+                        console.log('[GHL MCP HTTP] Client initialized successfully!');
+                        console.log('[GHL MCP HTTP] Waiting for tools/list request...');
+                        // Send a simple acknowledgment
+                        res.status(200).end();
+                        // If Claude doesn't request tools within 2 seconds, there might be an issue
+                        setTimeout(() => {
+                            console.log('[GHL MCP HTTP] WARNING: No tools/list request received yet. Client may not recognize tools capability.');
+                        }, 2000);
                         return;
                     }
                     // Handle tools list request
                     if (method === 'tools/list') {
+                        console.log('[GHL MCP HTTP] Tools list requested!');
+                        const allTools = [
+                            ...this.contactTools.getToolDefinitions(),
+                            ...this.conversationTools.getToolDefinitions(),
+                            ...this.blogTools.getToolDefinitions(),
+                            ...this.opportunityTools.getToolDefinitions(),
+                            ...this.calendarTools.getToolDefinitions(),
+                            ...this.emailTools.getToolDefinitions(),
+                            ...this.locationTools.getToolDefinitions(),
+                            ...this.emailISVTools.getToolDefinitions(),
+                            ...this.socialMediaTools.getTools(),
+                            ...this.mediaTools.getToolDefinitions(),
+                            ...this.objectTools.getToolDefinitions(),
+                            ...this.associationTools.getTools(),
+                            ...this.customFieldV2Tools.getTools(),
+                            ...this.workflowTools.getTools(),
+                            ...this.surveyTools.getTools(),
+                            ...this.storeTools.getTools(),
+                            ...this.productsTools.getTools(),
+                            ...this.paymentsTools.getTools(),
+                            ...this.invoicesTools.getTools()
+                        ];
+                        console.log(`[GHL MCP HTTP] Returning ${allTools.length} tools`);
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            result: {
+                                tools: allTools
+                            }
+                        });
+                        return;
+                    }
+                    // Handle resources list request (Claude sends this instead of tools/list)
+                    if (method === 'resources/list') {
+                        console.log('[GHL MCP HTTP] Resources list requested - returning empty resources');
+                        res.json({
+                            jsonrpc: '2.0',
+                            id,
+                            result: {
+                                resources: []
+                            }
+                        });
+                        console.log('[GHL MCP HTTP] Resources response sent');
+                        return;
+                    }
+                    // Claude might be looking for tools in resources - let's also try advertising tools here
+                    if (method === 'resources/templates') {
+                        console.log('[GHL MCP HTTP] Resource templates requested - sending tools as resources');
                         const allTools = [
                             ...this.contactTools.getToolDefinitions(),
                             ...this.conversationTools.getToolDefinitions(),
@@ -586,7 +696,12 @@ class GHLMCPHybridServer {
                             jsonrpc: '2.0',
                             id,
                             result: {
-                                tools: allTools
+                                resourceTemplates: allTools.map(tool => ({
+                                    uri: `tool://ghl/${tool.name}`,
+                                    name: tool.name,
+                                    description: tool.description,
+                                    mimeType: 'application/json'
+                                }))
                             }
                         });
                         return;
@@ -684,11 +799,13 @@ class GHLMCPHybridServer {
                             return;
                         }
                     }
-                    // Unknown method
+                    // Unknown method - this should catch any unhandled requests
+                    console.log(`[GHL MCP HTTP] ERROR: Unknown method '${method}' - this request was not handled`);
+                    console.log(`[GHL MCP HTTP] Available handlers: initialize, notifications/cancelled, notifications/initialized, resources/list, tools/list, tools/call`);
                     res.json({
                         jsonrpc: '2.0',
                         id,
-                        error: { code: -32601, message: 'Method not found' }
+                        error: { code: -32601, message: `Method not found: ${method}` }
                     });
                     return;
                 }
@@ -704,9 +821,24 @@ class GHLMCPHybridServer {
                 }
             }
             catch (error) {
-                console.error(`[GHL MCP HTTP] SSE error for session ${sessionId}:`, error);
+                console.error(`[GHL MCP HTTP] CRITICAL ERROR in handleSSE for session ${sessionId}:`, error);
+                console.error(`[GHL MCP HTTP] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
                 if (!res.headersSent) {
-                    res.status(500).json({ error: 'Failed to handle request' });
+                    try {
+                        res.status(500).json({
+                            jsonrpc: '2.0',
+                            id: req.body?.id || null,
+                            error: {
+                                code: -32603,
+                                message: 'Internal error',
+                                data: error instanceof Error ? error.message : 'Unknown error'
+                            }
+                        });
+                    }
+                    catch (responseError) {
+                        console.error(`[GHL MCP HTTP] Failed to send error response:`, responseError);
+                        res.end();
+                    }
                 }
                 else {
                     res.end();
@@ -714,8 +846,16 @@ class GHLMCPHybridServer {
             }
         };
         // Handle both GET and POST for SSE
-        this.app.get('/sse', handleSSE);
-        this.app.post('/sse', handleSSE);
+        console.log('[GHL MCP HTTP] Registering SSE route handlers...');
+        this.app.get('/sse', (req, res) => {
+            console.log('[GHL MCP HTTP] GET /sse route handler called');
+            handleSSE(req, res);
+        });
+        this.app.post('/sse', (req, res) => {
+            console.log('[GHL MCP HTTP] POST /sse route handler called');
+            handleSSE(req, res);
+        });
+        console.log('[GHL MCP HTTP] SSE routes registered successfully');
         // Root endpoint with server info
         this.app.get('/', async (req, res) => {
             try {
