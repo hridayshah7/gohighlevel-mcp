@@ -522,8 +522,10 @@ class GHLMCPHybridServer {
                     const { jsonrpc, id, method, params } = req.body;
                     
                     console.log(`[GHL MCP HTTP] JSON-RPC request: ${method}`);
+                    console.log(`[GHL MCP HTTP] Request ID: ${id}, JSONRPC: ${jsonrpc}`);
                     
                     if (jsonrpc !== '2.0') {
+                        console.log('[GHL MCP HTTP] Invalid JSON-RPC version');
                         res.json({
                             jsonrpc: '2.0',
                             id,
@@ -781,11 +783,13 @@ class GHLMCPHybridServer {
                         }
                     }
 
-                    // Unknown method
+                    // Unknown method - this should catch any unhandled requests
+                    console.log(`[GHL MCP HTTP] ERROR: Unknown method '${method}' - this request was not handled`);
+                    console.log(`[GHL MCP HTTP] Available handlers: initialize, notifications/cancelled, notifications/initialized, resources/list, tools/list, tools/call`);
                     res.json({
                         jsonrpc: '2.0',
                         id,
-                        error: { code: -32601, message: 'Method not found' }
+                        error: { code: -32601, message: `Method not found: ${method}` }
                     });
                     return;
                 }
