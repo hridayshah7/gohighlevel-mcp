@@ -552,52 +552,55 @@ class GHLMCPHybridServer {
                     }
                     // Handle MCP initialization
                     if (method === 'initialize') {
-                        console.log('[GHL MCP HTTP] Sending initialize response...');
-                        console.log('[GHL MCP HTTP] Client info:', JSON.stringify(params.clientInfo, null, 2));
-                        // Get tool count for logging
-                        const allTools = [
-                            ...this.contactTools.getToolDefinitions(),
-                            ...this.conversationTools.getToolDefinitions(),
-                            ...this.blogTools.getToolDefinitions(),
-                            ...this.opportunityTools.getToolDefinitions(),
-                            ...this.calendarTools.getToolDefinitions(),
-                            ...this.emailTools.getToolDefinitions(),
-                            ...this.locationTools.getToolDefinitions(),
-                            ...this.emailISVTools.getToolDefinitions(),
-                            ...this.socialMediaTools.getTools(),
-                            ...this.mediaTools.getToolDefinitions(),
-                            ...this.objectTools.getToolDefinitions(),
-                            ...this.associationTools.getTools(),
-                            ...this.customFieldV2Tools.getTools(),
-                            ...this.workflowTools.getTools(),
-                            ...this.surveyTools.getTools(),
-                            ...this.storeTools.getTools(),
-                            ...this.productsTools.getTools(),
-                            ...this.paymentsTools.getTools(),
-                            ...this.invoicesTools.getTools()
-                        ];
-                        console.log(`[GHL MCP HTTP] Advertising ${allTools.length} tools capability`);
-                        res.json({
-                            jsonrpc: '2.0',
-                            id,
-                            result: {
-                                protocolVersion: '2024-11-05',
-                                capabilities: {
-                                    tools: {
-                                        listChanged: true
+                        console.log('[GHL MCP HTTP] === STARTING INITIALIZE HANDLER ===');
+                        try {
+                            console.log('[GHL MCP HTTP] Parsing client info...');
+                            const clientInfo = params?.clientInfo || {};
+                            console.log('[GHL MCP HTTP] Client info parsed successfully:', JSON.stringify(clientInfo, null, 2));
+                            console.log('[GHL MCP HTTP] Building response object...');
+                            const response = {
+                                jsonrpc: '2.0',
+                                id,
+                                result: {
+                                    protocolVersion: '2024-11-05',
+                                    capabilities: {
+                                        tools: {
+                                            listChanged: true
+                                        },
+                                        resources: {
+                                            subscribe: false,
+                                            listChanged: false
+                                        }
                                     },
-                                    resources: {
-                                        subscribe: false,
-                                        listChanged: false
+                                    serverInfo: {
+                                        name: 'ghl-mcp-server',
+                                        version: '1.0.0'
                                     }
-                                },
-                                serverInfo: {
-                                    name: 'ghl-mcp-server',
-                                    version: '1.0.0'
                                 }
+                            };
+                            console.log('[GHL MCP HTTP] Sending JSON response...');
+                            res.json(response);
+                            console.log('[GHL MCP HTTP] === INITIALIZE RESPONSE SENT SUCCESSFULLY ===');
+                        }
+                        catch (error) {
+                            console.error('[GHL MCP HTTP] === CRITICAL ERROR IN INITIALIZE ===');
+                            console.error('[GHL MCP HTTP] Error details:', error);
+                            console.error('[GHL MCP HTTP] Error stack:', error instanceof Error ? error.stack : 'No stack');
+                            try {
+                                res.json({
+                                    jsonrpc: '2.0',
+                                    id,
+                                    error: {
+                                        code: -32603,
+                                        message: 'Internal error during initialization',
+                                        data: error instanceof Error ? error.message : 'Unknown error'
+                                    }
+                                });
                             }
-                        });
-                        console.log('[GHL MCP HTTP] Initialize response sent - tools capability advertised');
+                            catch (responseError) {
+                                console.error('[GHL MCP HTTP] Failed to send error response:', responseError);
+                            }
+                        }
                         return;
                     }
                     // Handle notifications/cancelled (for timeouts)
